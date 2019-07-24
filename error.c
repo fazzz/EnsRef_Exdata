@@ -1,8 +1,9 @@
 #include <stdio.h>
 #include <stdlib.h>
 
-#include "EF.h"
-#include "gc.h"
+#include <gc.h>
+
+#include "error.h"
 
 #define ERR(e) {printf("Error: %s\n", nc_strerror(e)); return 2;}
 
@@ -84,4 +85,3 @@ char *egetenv(const char *name) {
     return env;
   }
 }
-

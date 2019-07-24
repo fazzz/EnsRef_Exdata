@@ -2,11 +2,11 @@
 # Makefile for Ens_Reweight_wExpdatda program
 #
 
-HOME=../
+HOME=. #../
 SRC=.
-BIN=../bin
-LIBDIR=-L/home/yamamori/work/programs/ABAMD_2014_05_01/lib #-L~/mylib -L~/lib
-INCDIR=-I/home/yamamori/work/programs/ABAMD_2014_05_01/include #-I~/myinclude -I~/include
+BIN=. #../bin
+LIBDIR=-L/Users/yamamoriyuu//onedrive/Research/work/programs/C/liblbfgs/lib
+INCDIR=-I/Users/yamamoriyuu//onedrive/Research/work/programs/C/liblbfgs/include
 
 # definitions
 #CC    = icc -pg -O3 -tpp6 -ipo
@@ -17,29 +17,39 @@ CC    = gcc -g
 
 CFLAG = #-D_FILE_OFFSET_BITS=64 -D_LARGEFILE_SOURCE -m64 -O2
 
-OBJS =  main.o EF.o
+OBJS =  main.o error.o func.o
 
-LIBS =  EF.h
+LIBS =  error.h func.h
 
-EXLIBS=-lm -lgc
+EXLIBS = -llbfgs -lm -lgc
 
-TARGET =WHAM_MLE_oneD
+TARGET = ensRefEx
 
 .c.o:
 	$(CC) $(INCDIR) -c $(CFLAG) $<;
 
-all: WHAM_MLE_oneD install
+all: ensReEx #install
 
 # rules of generations
-WHAM_MLE_oneD:  $(OBJS) $(LIBS)
+
+#sample: $(OBJS) $(LIBS)
+#	$(CC) $(CFLAG) -o $@ $(OBJS) $(LIBDIR) $(INCDIR) $(EXLIBS) ;
+
+ensRefEx:  $(OBJS) $(LIBS)
 	$(CC) $(CFLAG) -o $@ $(OBJS) $(LIBDIR) $(INCDIR) $(EXLIBS) ;
 
 install: 
 	cp $(TARGET) $(BIN) ; 
 
-main.o:	EF.h
-EF.o: EF.h 
+#sample.o:
+main.o: error.h func.h
+func.o: func.h error.h
+error.o: error.h 
 
 clean: 
 	rm $(OBJS); \
 	rm $(TARGET);
+
+
+
+
