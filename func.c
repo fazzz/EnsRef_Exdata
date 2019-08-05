@@ -10,6 +10,18 @@
 #include "error.h"
 #include "func.h"
 
+/*
+  Chi_i := (<y_sim,i> - y_ex,i)
+
+  Lex^n({ omega }, Lambda) := Sum_{i=1}^{n} omega_{i} ln (omega_{i} / omega_{i}^{0}) 
+                             + Lambda (Sum_{i=1}^{N} omega_{i} -1).
+                             + rho_n (max[0, (\Sum Chi_i^2 - Delta])^2).
+
+  g_i({omega}, Lambda) = ln (omega_{i} / omega_{i}^{0}) + 1.
+  g_Lambda({omega}) = Sum_{i=1}^{N} omega_{i} -1.
+
+*/
+
 static lbfgsfloatval_t evaluate(
     void *instance,
     const lbfgsfloatval_t *w,

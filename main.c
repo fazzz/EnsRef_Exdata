@@ -8,11 +8,11 @@
  OUTPUT;
  omega: weights for each snapshots.
 
- where,
+ Where,
      rho_sim : distribution derived from simulation.
      rho_sim : optimal distribution.
 
-     Chi == \int \rho y - Y.
+     Chi := \int \rho y dx - Y.
 
  { omega^{opt.} } <- arg min_{ omega } D(rho || rho_sim),
  subject to Chi^2 < Delta, and Sigma (omega) = 1.
@@ -29,7 +29,7 @@
 #include <lbfgs.h>
 
 #include "error.h"
-//#include "func.h"
+#include "func.h"
 
 #define M 5
 
@@ -39,16 +39,16 @@ int main(int argc, char *argv[]) {
   int i,j,k,l,d,ret = 0;
   double dummy,f;
 
-  int n_snp, n_pnt=1, N; // # of snapshots, # of data points
+  int n_snp, n_pnt=1, N;   // # of snapshots, # of data points
 
-  double rk[4]; // weight for penalty function
+  double rk[4];            // weight for penalty function
   
-  double Del=10e-2;     // width of error
-  double r;             // weight for penalty function
-  double *wi0;          // initial weight for each snapshot
-  double *y_ex,**y_sim; // observal (experiment), observal (simulation)
+  double Del=10e-2;        // width of error
+  double r;                // weight for penalty function
+  double *wi0;             // initial weight for each snapshot
+  double *y_ex,**y_sim;    // observal (experiment), observal (simulation)
 
-  Lex_parameters Lex_p; // parametrs for extended Lagrangian
+  Lex_parameters Lex_p;    // parametrs for extended Lagrangian
   
   lbfgsfloatval_t Lex;     // extended Lagrangian
   lbfgsfloatval_t *wopt;   // (optimal) weights for snapshots
@@ -192,22 +192,20 @@ int main(int argc, char *argv[]) {
 
   N = n_snp + 1;
 
-  //  for (i=0;i<M;++i) {
-  //  
-  //    Lex_p.r=rk[i];
-  //
-  //    /*Start the L-BFGS optimization.*/
-  //    ret = lbfgs(N, wopt, &Lex, evaluate, progress, &(Lex_p), &param);
-  //    printf("n=%3d  Ln = %8.3f\n", i+1,Lex);
-  //  }
+  for (i=0;i<M;++i) {
+    
+    Lex_p.r=rk[i];
+  
+    /*Start the L-BFGS optimization.*/
+    ret = lbfgs(N, wopt, &Lex, evaluate, progress, &(Lex_p), &param);
+    printf("n=%3d  Ln = %8.3f\n", i+1,Lex);
+  }
 
-  /*
   outfile=efopen(outfilename,"w");
   for (i=0;i<n_snp;++i) {
     fprintf(outfile,"%4d %10.8lf\n",i+1,wopt[i]);
   }
   fclose(outfile);
-  */
 
   return 0;
 }
@@ -222,4 +220,3 @@ int USAGE(char *progname) {
   printf("[-r4  <rhor> ] \n");
   printf("%s inputname1(exp data) inputname2(simu data) outfilename\n",progname);
 }
-
