@@ -274,7 +274,7 @@ static lbfgsfloatval_t evaluate(
   struct Lex_parameters *Lex_p=(struct Lex_parameters *)instance;
   lbfgsfloatval_t Le;
 
-  double *Chi, ChiSqu=0.0;
+  double *Chi, ChiSqu=0.0, Accep;
   double sum_w=0.0;
   
   Chi = (double *)gcemalloc(sizeof(double)*Lex_p->n_pnt);
@@ -295,19 +295,21 @@ static lbfgsfloatval_t evaluate(
 
   Le=0.0;
   for (i=0;i<n-1;++i) {
-    g[i]=log(w[i]/Lex_p->wi0[i])+1;
+    g[i]=log(w[i]/Lex_p->wi0[i])+1.0;
     Le+=w[i]*log(w[i]/Lex_p->wi0[i]);
   }
   g[i]=sum_w - 1.0;
   Le += w[i]*g[i];
+
+  Accep = ChiSqu - Lex_p->Delta;
   
-  if (ChiSqu > Lex_p->Delta) {
+  if (Accep > 0.0) {
     for (i=0;i<n-1;++i) {
       for (j=0;j<Lex_p->n_pnt;++j) {
-	g[i]+=4.0*Lex_p->r*(ChiSqu-Lex_p->Delta)*Chi[j]*Lex_p->y_sim[j][i];
+	g[i]+=4.0*Lex_p->r*Accep*Chi[j]*Lex_p->y_sim[j][i];
       }
     }
-    Le+=Lex_p->r*(ChiSqu-Lex_p->Delta)*(ChiSqu-Lex_p->Delta);
+    Le+=Lex_p->r*Accep*Accep;
   }
 
   return Le;

@@ -17,9 +17,9 @@ CC    = gcc -g
 
 CFLAG = #-D_FILE_OFFSET_BITS=64 -D_LARGEFILE_SOURCE -m64 -O2
 
-OBJS =  main.o error.o #func.o
+OBJS =  ensRefEx.o error.o
 
-LIBS =  error.h #func.h
+LIBS =  error.h
 
 EXLIBS = -llbfgs -lm -lgc
 
@@ -38,8 +38,7 @@ ensRefEx:  $(OBJS) $(LIBS)
 install: 
 	cp $(TARGET) $(BIN) ; 
 
-main.o: error.h #func.h
-#func.o: func.h error.h
+ensRefEx.o: error.h
 error.o: error.h 
 
 clean: 
