@@ -39,6 +39,17 @@ void *gcemalloc(size_t n){
   return p;
 }
 
+void *gcemalloc_atomic(size_t n){
+  void *p;
+
+  if ((p=GC_malloc_atomic(n))==NULL) {
+    printf("open about allocation\n");
+    exit(1);
+  }
+
+  return p;
+}
+
 void *ecalloc(size_t t,size_t size){
   void *p;
 

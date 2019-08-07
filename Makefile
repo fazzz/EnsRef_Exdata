@@ -17,9 +17,9 @@ CC    = gcc -g
 
 CFLAG = #-D_FILE_OFFSET_BITS=64 -D_LARGEFILE_SOURCE -m64 -O2
 
-OBJS =  main.o error.o func.o
+OBJS =  main.o error.o #func.o
 
-LIBS =  error.h func.h
+LIBS =  error.h #func.h
 
 EXLIBS = -llbfgs -lm -lgc
 
@@ -28,12 +28,9 @@ TARGET = ensRefEx
 .c.o:
 	$(CC) $(INCDIR) -c $(CFLAG) $<;
 
-all: ensReEx #install
+all: ensRefEx #install
 
 # rules of generations
-
-#sample: $(OBJS) $(LIBS)
-#	$(CC) $(CFLAG) -o $@ $(OBJS) $(LIBDIR) $(INCDIR) $(EXLIBS) ;
 
 ensRefEx:  $(OBJS) $(LIBS)
 	$(CC) $(CFLAG) -o $@ $(OBJS) $(LIBDIR) $(INCDIR) $(EXLIBS) ;
@@ -41,9 +38,8 @@ ensRefEx:  $(OBJS) $(LIBS)
 install: 
 	cp $(TARGET) $(BIN) ; 
 
-#sample.o:
-main.o: error.h func.h
-func.o: func.h error.h
+main.o: error.h #func.h
+#func.o: func.h error.h
 error.o: error.h 
 
 clean: 
