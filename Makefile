@@ -4,7 +4,7 @@
 
 HOME=. #../
 SRC=.
-BIN=. #../bin
+BIN=../bin
 LIBDIR=-L/Users/yamamoriyuu//onedrive/Research/work/programs/C/liblbfgs/lib
 INCDIR=-I/Users/yamamoriyuu//onedrive/Research/work/programs/C/liblbfgs/include
 
@@ -44,7 +44,3 @@ error.o: error.h
 clean: 
 	rm $(OBJS); \
 	rm $(TARGET);
-
-
-
-

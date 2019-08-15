@@ -5,17 +5,29 @@
  { Y } : experimental data. M dimension.
  { y } : simulation data projected to the observal space. M x N dimension.
 
+ Where y = y(x), and {x} means samples on phase space.
+
  OUTPUT;
- omega: weights for each snapshots.
+ { omega }: weights for each snapshots.
+            N dimension.
 
- Where,
-     rho_sim : distribution derived from simulation.
-     rho_sim : optimal distribution.
+ Where, 
+ rho_sim : distribution derived from simulation.
+ rho     : optimal distribution that realize the experimental data
+           within error width Delta.
 
-     Chi := \int \rho y dx - Y.
+ Optimal distribution rho can be represented by weights { omega }.
 
+ rho = omega_i ... x=x_{i}.
+       0       ... otherwise.
+
+ ALGORITHM;
  { omega^{opt.} } <- arg min_{ omega } D(rho || rho_sim),
- subject to Chi^2 < Delta, and Sigma (omega) = 1.
+ subject to Chi^2 < Delta, and \int rho dx = 1.
+
+ Where, 
+ D means Kullback-Leiblar divergence and
+ Chi := \int \rho y dx - Y.
 */
 
 #define _GNU_SOURCE  
@@ -31,7 +43,12 @@
 #include "error.h"
 //#include "func.h"
 
-#define M 5
+#define M 20
+
+#define LargeConst 1.0e10
+
+#define ON 0
+#define OFF 1
 
 struct Lex_parameters {
   int n_pnt;            // # of points
@@ -63,18 +80,18 @@ static int progress(
 void USAGE(char *progname);
 
 int main(int argc, char *argv[]) {
-  int i,j,k,l,d,ret = 0;
+  int i,j,k,l,d,ret = 0,interval=100;
   double dummy,f;
 
-  int n_snp, n_pnt=1, N;   // # of snapshots, # of data points
+  int n_snp, n_pnt, N;   // # of snapshots, # of data points
 
-  double rk[4];            // weight for penalty function
+  double rk[M];            // weight for penalty function
   
-  double Del=10e-2;        // width of error
+  double Del=1.0;          // width of error
   double r;                // weight for penalty function
   double *wi0;             // initial weight for each snapshot
   double *y_ex,**y_sim;    // observal (experiment), observal (simulation)
-
+  double *Chi, ChiSqu=0.0;
   struct Lex_parameters Lex_p;    // parametrs for extended Lagrangian
   
   lbfgsfloatval_t Lex;     // extended Lagrangian
@@ -99,7 +116,10 @@ int main(int argc, char *argv[]) {
   char *progname;
   int opt_idx=1;
 
-  rk[0]=1.0e-1; rk[1]=1.0e0; rk[2]=1.0e1; rk[3]=1.0e2;
+  rk[0]=1.0e0;  rk[1]=5.0e0;  rk[2]=1.0e1;  rk[3]=5.0e1;  rk[4]=1.0e2;
+  rk[5]=5.0e2;  rk[6]=1.0e3;  rk[7]=5.0e3;  rk[8]=1.0e4;  rk[9]=2.0e4;
+  rk[10]=2.5e4; rk[11]=2.7e4; rk[12]=2.8e4; rk[13]=3.0e4; rk[14]=3.2e4;
+  rk[15]=3.5e4; rk[16]=3.7e4; rk[17]=3.8e4; rk[18]=4.0e4; rk[19]=4.2e4;
     
   struct option long_opt[] = {
     {"Del",1,NULL,'d'},
@@ -140,11 +160,11 @@ int main(int argc, char *argv[]) {
   inputfileSimDataname = *++argv;
   outputfilename       = *++argv;
 
-  printf("inputfile of Experimental Data=%s\n",inputfileExpDataname);
-  printf("inputfile of Simulation   Data=%s\n",inputfileSimDataname);
-  printf("outputfile      =%s\n",outputfilename);
+  //  printf("inputfile of Experimental Data=%s\n",inputfileExpDataname);
+  //  printf("inputfile of Simulation   Data=%s\n",inputfileSimDataname);
+  //  printf("outputfile      =%s\n",outputfilename);
   
-  y_ex=(double *)gcemalloc(sizeof(double)*1);
+  y_ex=(double *)gcemalloc_atomic(sizeof(double)*1);
 
   inputfileExpData=efopen(inputfileExpDataname,"r");
   n_pnt=0;
@@ -154,18 +174,20 @@ int main(int argc, char *argv[]) {
     y_ex=(double *)gcerealloc(y_ex,sizeof(double)*(n_pnt));
   }
   fclose(inputfileExpData);
-
-  printf("# of data points : %4d\n",n_pnt);
+  Chi = (double *)gcemalloc_atomic(sizeof(double)*n_pnt);
+  //  printf("# of data points : %4d\n",n_pnt);
 
   /* debug printf */
-  for (i=0;i<n_pnt;++i) {
-    printf("%8.3lf\n",y_ex[i]);
-  }
-  printf("\n");
+  /*********************************/
+  /* for (i=0;i<n_pnt;++i) {	   */
+  /*   printf("%8.3lf\n",y_ex[i]); */
+  /* }				   */
+  /* printf("\n");		   */
+  /*********************************/
 
   n_snp = 1;
-  y_sim   =(double **)gcemalloc(sizeof(double *)*n_snp);
-  y_sim[0]=(double  *)gcemalloc(sizeof(double)*n_pnt);
+  y_sim   =(double **)gcemalloc_atomic(sizeof(double *)*n_snp);
+  y_sim[0]=(double  *)gcemalloc_atomic(sizeof(double)*n_pnt);
   
   inputfileSimData=efopen(inputfileSimDataname,"r");
   i=0;
@@ -181,7 +203,7 @@ int main(int argc, char *argv[]) {
       i=0;
 
       y_sim=(double **)gcerealloc(y_sim,sizeof(double *)*(n_snp));
-      y_sim[n_snp-1]=(double *)gcemalloc(sizeof(double)*n_pnt);
+      y_sim[n_snp-1]=(double *)gcemalloc_atomic(sizeof(double)*n_pnt);
       y_sim[n_snp-1][i] = f;
 
       ++i;
@@ -189,47 +211,77 @@ int main(int argc, char *argv[]) {
   }
   fclose(inputfileSimData);
 
-  printf("# of snap shots  : %4d\n",n_snp);
+  //  printf("# of snap shots  : %4d\n",n_snp);
   
   /* debug printf */
-  for (i=0;i<n_snp;++i) {
-    for (j=0;j<n_pnt;++j) {
-      printf("%8.3lf\n",y_sim[i][j]);
-    }
-    printf("\n");
-  }
+  /***************************************/
+  /* for (i=0;i<n_snp;++i) {		 */
+  /*   for (j=0;j<n_pnt;++j) {		 */
+  /*     printf("%8.3lf\n",y_sim[i][j]); */
+  /*   }				 */
+  /*   printf("\n");			 */
+  /* }					 */
+  /***************************************/
 
-  wi0 = (double *)gcemalloc(sizeof(double)*n_snp);
+  wi0 = (double *)gcemalloc_atomic(sizeof(double)*n_snp);
 
   for (i=0;i<n_snp;++i) {
     wi0[i] = 1.0/n_snp;
   }
 
-  wopt = lbfgs_malloc(n_snp+1);
+  N = n_snp/* + 1*/;
+  wopt = lbfgs_malloc(N);
 
   for (i=0;i<n_snp;++i) {
     wopt[i] = wi0[i];
   }
-  wopt[i] = 0.0;
+  //  wopt[i] = 1.0e4;
 
-  /* Initialize the parameters for the L-BFGS optimization. */
-  lbfgs_parameter_init(&param);
-
+  Lex_p.n_pnt=n_pnt;
   Lex_p.Delta=Del;
   Lex_p.wi0=wi0;
   Lex_p.y_ex=y_ex;
   Lex_p.y_sim=y_sim;
 
-  N = n_snp + 1;
-
-  for (i=0;i<M;++i) {
+  for (i=0;i<n_pnt;++i) {
+    Chi[i]=0.0;
+    for (j=0;j<n_snp;++j) {
+      Chi[i]+=wi0[j]*y_sim[j][i];
+    }
+    Chi[i]-=y_ex[i];
+    
+    ChiSqu += Chi[i]*Chi[i];
+  }
+  
+  printf("ChiSqu(ini) = %8.3lf\n", ChiSqu);
+  
+  for (i=0;i<1/*M*/;++i) {
     
     Lex_p.r=rk[i];
-  
+
+    /* Initialize the parameters for the L-BFGS optimization. */
+    lbfgs_parameter_init(&param);
+    
     /*Start the L-BFGS optimization.*/
-    ret = lbfgs(N, wopt, &Lex, evaluate, progress, &(Lex_p), &param);
-    printf("n=%3d  Ln = %8.3f\n", i+1,Lex);
+    if ((ret = lbfgs(N, wopt, &Lex, evaluate, progress, &(Lex_p), &param)) != 0) {
+      printf("lbfgs error!\n");
+      exit(1);
+    }
+    printf("n=%3d  rho_%-3d = %8.3f Lex = %8.3lf\n", i+1, i+1, rk[i], Lex);
+
   }
+
+  for (i=0;i<n_pnt;++i) {
+    Chi[i]=0.0;
+    for (j=0;j<n_snp;++j) {
+      Chi[i]+=wopt[j]*y_sim[j][i];
+    }
+    Chi[i]-=y_ex[i];
+    
+    ChiSqu += Chi[i]*Chi[i];
+  }
+  
+  printf("ChiSqu(fin) = %8.3lf\n", ChiSqu);
 
   outputfile=efopen(outputfilename,"w");
   for (i=0;i<n_snp;++i) {
@@ -252,65 +304,107 @@ void USAGE(char *progname) {
 }
 
 /*
-  Chi_i := (<y_sim,i> - y_ex,i)
+  Chi_i := (<y_sim,i> - y_ex,i).
+  Chi-2 := \Sum Chi_i^2.
 
   Lex^n({ omega }, Lambda) := Sum_{i=1}^{n} omega_{i} ln (omega_{i} / omega_{i}^{0}) 
                              + Lambda (Sum_{i=1}^{N} omega_{i} -1).
                              + rho_n (max[0, (\Sum Chi_i^2 - Delta])^2).
 
-  g_i({omega}, Lambda) = ln (omega_{i} / omega_{i}^{0}) + 1.
+  g_i({omega}, Lambda) = ln (omega_{i} / omega_{i}^{0}) + 1
+                         + 4*rho_n*(Chi^2-Delta)*\Sum_j=1{ Chi_j*y_j,i }.
+  Where, 3rd of rhs is active when Chi^2>Delta.
   g_Lambda({omega}) = Sum_{i=1}^{N} omega_{i} -1.
-
 */
 
 static lbfgsfloatval_t evaluate(
     void *instance,
-    const lbfgsfloatval_t *w,
+    const lbfgsfloatval_t *x,
     lbfgsfloatval_t *g,
     const int n,
     const lbfgsfloatval_t step
 				) {
   int i, j;
   struct Lex_parameters *Lex_p=(struct Lex_parameters *)instance;
-  lbfgsfloatval_t Le;
+  lbfgsfloatval_t Le=0.0;
 
-  double *Chi, ChiSqu=0.0, Accep;
-  double sum_w=0.0;
+  int minusflag;
   
-  Chi = (double *)gcemalloc(sizeof(double)*Lex_p->n_pnt);
+  int n_pnt=Lex_p->n_pnt;
+  double Delta=Lex_p->Delta;
+  double r=Lex_p->r;
+  double *wi0=Lex_p->wi0;
+  double *y_ex=Lex_p->y_ex;
+  double **y_sim=Lex_p->y_sim;
+  
+  double *Chi, ChiSum=0.0, ChiSqu=0.0, ratio_w_wi, ln_w_wi, Accep;
+  double sum_w=0.0;
 
-  for (i=0;i<n;++i) {
-    sum_w+=w[i];
+  double lambda, *absX;
+  
+  minusflag=OFF;
+  
+  //  for (i=0;i<n/*-1*/;++i) {
+  //    g[i]=0.0;
+  //    if (x[i] < 0.0) {
+  //      Le+=LargeConst*x[i]*x[i];
+  //      g[i]=LargeConst*2.0*x[i];
+  //      minusflag=ON;
+  //    }
+  //  }
+  //  g[i]=0.0;
+  //
+  //  if (minusflag==ON) {
+  //    return Le;
+  //  }
+  
+  Chi = (double *)gcemalloc_atomic(sizeof(double)*n_pnt);
+  absX = (double *)gcemalloc_atomic(sizeof(double)*n_pnt);
+
+  for (i=0;i<n/*-1*/;++i) {
+    absX[i] = fabs(x[i]);
   }
-    
-  for (i=0;i<Lex_p->n_pnt;++i) {
-    Chi[i]=0.0;
-    for (j=0;j<n-1;++j) {
-      Chi[i]+=w[j]*Lex_p->y_sim[i][j];
-    }
-    Chi[i]-=Lex_p->y_ex[i];
-    
-    ChiSqu += Chi[i]*Chi[i];
+  
+  for (i=0;i<n/*-1*/;++i) {
+    sum_w+=absX[i];
   }
 
   Le=0.0;
-  for (i=0;i<n-1;++i) {
-    g[i]=log(w[i]/Lex_p->wi0[i])+1.0;
-    Le+=w[i]*log(w[i]/Lex_p->wi0[i]);
+  //  lambda=x[n-1];
+  for (i=0;i<n/*-1*/;++i) {
+    ratio_w_wi = absX[i]/wi0[i];
+    ln_w_wi=log(ratio_w_wi);
+    g[i]=ln_w_wi+1.0;
+      //+r*2.0*/*fabs*/(sum_w - 1.0)/*+lambda*/
+    Le+=absX[i]*ln_w_wi;
   }
-  g[i]=sum_w - 1.0;
-  Le += w[i]*g[i];
+  //g[i]=sum_w - 1.0;
+  //Le += lambda*(sum_w - 1.0);
+  //  Le += r*(sum_w - 1.0)*(sum_w - 1.0);
 
-  Accep = ChiSqu - Lex_p->Delta;
-  
-  if (Accep > 0.0) {
-    for (i=0;i<n-1;++i) {
-      for (j=0;j<Lex_p->n_pnt;++j) {
-	g[i]+=4.0*Lex_p->r*Accep*Chi[j]*Lex_p->y_sim[j][i];
-      }
+  for (i=0;i<n_pnt;++i) {
+    Chi[i]=0.0;
+    for (j=0;j<n/*-1*/;++j) {
+      Chi[i]+=absX[j]*y_sim[j][i];
     }
-    Le+=Lex_p->r*Accep*Accep;
+    Chi[i]-=y_ex[i];
+    
+    ChiSum += Chi[i];
+    ChiSqu += Chi[i]*Chi[i];
   }
+
+  Accep = ChiSqu - Delta;
+
+  /******************************************************/
+  /* if (Accep > 0.0) {				        */
+  /*   for (i=0;i<n/\*-1*\/;++i) {		        */
+  /*     for (j=0;j<n_pnt;++j) {		        */
+  /* 	g[i]+=4.0*r*Accep*ChiSum*y_sim[i][j];	        */
+  /*     }					        */
+  /*   }					        */
+  /*   Le+=r*Accep*Accep;			        */
+  /* }						        */
+  /******************************************************/
 
   return Le;
 }
@@ -328,9 +422,9 @@ static int progress(
     int ls
 		    )
 {
-  printf("Iteration %3d:\n", k);
-  printf("  fx = %8.3f\n", fx);
-  printf("  xnorm = %f, gnorm = %f, step = %f\n", xnorm, gnorm, step);
-  printf("\n");
+  printf("Iteration %3d:", k);
+  printf("  fx = %8.3f", fx);
+  printf("  xnorm = %8.3e, gnorm = %8.3e, step = %8.3f\n", xnorm, gnorm, step);
+  //  printf("\n");
   return 0;
 }
