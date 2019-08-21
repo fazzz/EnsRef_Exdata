@@ -5,8 +5,8 @@
 HOME=. #../
 SRC=.
 BIN=../bin
-LIBDIR=-L/Users/yamamoriyuu//onedrive/Research/work/programs/C/liblbfgs/lib
-INCDIR=-I/Users/yamamoriyuu//onedrive/Research/work/programs/C/liblbfgs/include
+LIBDIR=-L/Users/yamamoriyuu/onedrive/Research/work/programs/C/EnsRew_Ex/liblbfgs/lib
+INCDIR=-I/Users/yamamoriyuu/onedrive/Research/work/programs/C/EnsRew_Ex/liblbfgs/include
 
 # definitions
 #CC    = icc -pg -O3 -tpp6 -ipo

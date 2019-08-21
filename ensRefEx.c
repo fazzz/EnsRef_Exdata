@@ -43,14 +43,8 @@
 #include <lbfgs.h>
 
 #include "error.h"
-//#include "func.h"
 
 #define M 10
-
-#define LargeConst 1.0e10
-
-#define ON 0
-#define OFF 1
 
 struct Lex_parameters {
   int n_pnt;            // # of points
@@ -177,15 +171,6 @@ int main(int argc, char *argv[]) {
   }
   fclose(inputfileExpData);
   Chi = (double *)gcemalloc_atomic(sizeof(double)*Lex_p.n_pnt);
-  //  printf("# of data points : %4d\n",n_pnt);
-
-  /* debug printf */
-  /*********************************/
-  /* for (i=0;i<n_pnt;++i) {	   */
-  /*   printf("%8.3lf\n",y_ex[i]); */
-  /* }				   */
-  /* printf("\n");		   */
-  /*********************************/
 
   n_snp = 1;
   Lex_p.y_sim   =(double **)gcemalloc_atomic(sizeof(double *)*n_snp);
@@ -213,18 +198,6 @@ int main(int argc, char *argv[]) {
   }
   fclose(inputfileSimData);
 
-  //  printf("# of snap shots  : %4d\n",n_snp);
-  
-  /* debug printf */
-  /***************************************/
-  /* for (i=0;i<n_snp;++i) {		 */
-  /*   for (j=0;j<n_pnt;++j) {		 */
-  /*     printf("%8.3lf\n",y_sim[i][j]); */
-  /*   }				 */
-  /*   printf("\n");			 */
-  /* }					 */
-  /***************************************/
-
   Lex_p.wi = (double *)gcemalloc_atomic(sizeof(double)*n_snp);
   Lex_p.gi = (double *)gcemalloc_atomic(sizeof(double)*n_snp);
   wopt = (double *)gcemalloc_atomic(sizeof(double)*n_snp);
@@ -245,27 +218,9 @@ int main(int argc, char *argv[]) {
     gopt[i] = log(wopt[i]);
   }
 
-  /*Lex_p.n_pnt=n_pnt;
-  Lex_p.Delta=Del;
-  Lex_p.wi=(double *)gcemalloc_atomic(sizeof(double)*n_snp);
-  for (i=0;i<n_snp;++i) Lex_p.wi[i]=wi[i];
-  Lex_p.gi=(double *)gcemalloc_atomic(sizeof(double)*n_snp);
-  for (i=0;i<n_snp;++i) Lex_p.gi[i]=gi[i];
-  Lex_p.y_ex=(double *)gcemalloc_atomic(sizeof(double)*n_pnt);
-  for (i=0;i<n_pnt;++i) Lex_p.y_ex[i]=y_ex[i];
-  Lex_p.y_sim=(double **)gcemalloc_atomic(sizeof(double *)*n_snp);
-  for (i=0;i<n_snp;++i) Lex_p.y_sim[i]=(double *)gcemalloc_atomic(sizeof(double)*n_pnt);
-  for (i=0;i<n_snp;++i) for (j=0;j<n_pnt;++j) Lex_p.y_sim[i][j]=y_sim[i][j];*/
-
   /* Initialize the parameters for the L-BFGS optimization. */
   lbfgs_parameter_init(&param);
 
-  for (i=0;i<n_snp;++i) {
-    for (j=0;j<Lex_p.n_pnt;++j) {
-      printf("%8.3lf\n",Lex_p.y_sim[i][j]);
-    }
-  }
-  
   for (i=0;i<M;++i) {
     
     Lex_p.r=rk[i];
@@ -283,12 +238,6 @@ int main(int argc, char *argv[]) {
     wopt[i] = exp(gopt[i]);
   }
 
-  for (i=0;i<n_snp;++i) {
-    for (j=0;j<Lex_p.n_pnt;++j) {
-      printf("%8.3lf\n", Lex_p.y_sim[i][j]);
-    }
-  }
-  
   outputfile=efopen(outputfilename,"w");
   for (i=0;i<n_snp;++i) {
     fprintf(outputfile,"%4d %10.8lf\n",i+1,wopt[i]);
@@ -334,26 +283,30 @@ static lbfgsfloatval_t evaluate(
   struct Lex_parameters *Lex_p=(struct Lex_parameters *)instance;
   lbfgsfloatval_t Le=0.0;
 
-  int n_pnt=Lex_p->n_pnt;
-  double Delta=Lex_p->Delta;
-  double r=Lex_p->r;
-  double *wi;
-  double *gi;
-  double *y_ex;
-  double **y_sim;
+  /******************************/
+  /* int n_pnt=Lex_p->n_pnt;    */
+  /* double Delta=Lex_p->Delta; */
+  /* double r=Lex_p->r;	        */
+  /* double *wi;	        */
+  /* double *gi;	        */
+  /* double *y_ex;	        */
+  /* double **y_sim;	        */
+  /******************************/
   
   double *Chi, ChiSum=0.0, ChiSqu=0.0, ratio_w_wi, ln_w_wi, Accep;
   double *wopt;
-  double sum_w=0.0;
+  double sum_w=0.0, f;
 
-  wi=(double *)gcemalloc_atomic(sizeof(double)*n_snp);
-  gi=(double *)gcemalloc_atomic(sizeof(double)*n_snp);
-
-  y_ex=(double *)gcemalloc_atomic(sizeof(double)*n_pnt);
-  y_sim=(double **)gcemalloc_atomic(sizeof(double *)*n_pnt);
-  for (i=0;i<n_pnt;++i) y_sim[i]=(double *)gcemalloc_atomic(sizeof(double)*n_snp);
+  /************************************************************************************/
+  /* wi=(double *)gcemalloc_atomic(sizeof(double)*n_snp);			      */
+  /* gi=(double *)gcemalloc_atomic(sizeof(double)*n_snp);			      */
+  /* 										      */
+  /* y_ex=(double *)gcemalloc_atomic(sizeof(double)*n_pnt);			      */
+  /* y_sim=(double **)gcemalloc_atomic(sizeof(double *)*n_pnt);			      */
+  /* for (i=0;i<n_pnt;++i) y_sim[i]=(double *)gcemalloc_atomic(sizeof(double)*n_snp); */
+  /************************************************************************************/
   
-  Chi = (double *)gcemalloc_atomic(sizeof(double)*n_pnt);
+  Chi = (double *)gcemalloc_atomic(sizeof(double)*Lex_p->n_pnt);
 
   n_snp = n;
   wopt = (double *)gcemalloc_atomic(sizeof(double)*n_snp);
@@ -365,35 +318,36 @@ static lbfgsfloatval_t evaluate(
 
   Le=0.0;
   for (i=0;i<n_snp;++i) {
-    g[i]=wopt[i]*(gopt[i]-gi[i]+1.0+2.0*r*(sum_w - 1.0));
+    g[i]=wopt[i]*(gopt[i]-Lex_p->gi[i]+1.0+2.0*Lex_p->r*(sum_w - 1.0));
 
-    Le+=wopt[i]*log(wopt[i]/wi[i]);
+    Le+=wopt[i]*log(wopt[i]/Lex_p->wi[i]);
   }
-  Le += r*(sum_w - 1.0)*(sum_w - 1.0);
+  Le += Lex_p->r*(sum_w - 1.0)*(sum_w - 1.0);
 
-  for (i=0;i<n_pnt;++i) {
+  for (i=0;i<Lex_p->n_pnt;++i) {
     Chi[i]=0.0;
     for (j=0;j<n_snp;++j) {
-      Chi[i]+=wopt[j]*y_sim[j][i];
+      Chi[i]+=wopt[j]*Lex_p->y_sim[j][i];
     }
-    Chi[i]-=y_ex[i];
-    
+    Chi[i]-=Lex_p->y_ex[i];
+  
     ChiSum += Chi[i];
     ChiSqu += Chi[i]*Chi[i];
   }
-
-  Accep = ChiSqu - Delta;
   
-  /******************************************************/
-  /* if (Accep > 0.0) {				        */
-  /*   for (i=0;i<n/\*-1*\/;++i) {		        */
-  /*     for (j=0;j<n_pnt;++j) {		        */
-  /* 	g[i]+=4.0*r*Accep*ChiSum*y_sim[i][j];	        */
-  /*     }					        */
-  /*   }					        */
-  /*   Le+=r*Accep*Accep;			        */
-  /* }						        */
-  /******************************************************/
+  Accep = ChiSqu - Lex_p->Delta;
+  
+  if (Accep > 0.0) {
+    for (i=0;i<n_snp;++i) {
+      f=0.0;
+      for (j=0;j<Lex_p->n_pnt;++j) {
+  	f+=Chi[j]*Lex_p->y_sim[i][j];
+      }
+      f=f*4.0*Lex_p->r*Accep*wopt[i];
+      g[i]+=f;
+    }
+    Le+=Lex_p->r*Accep*Accep;
+  }
 
   return Le;
 }
