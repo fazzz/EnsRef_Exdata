@@ -44,7 +44,7 @@
 
 #include "error.h"
 
-#define M 10
+#define M 12 //10 //8 //4 //10
 
 struct Lex_parameters {
   int n_pnt;            // # of points
@@ -112,10 +112,18 @@ int main(int argc, char *argv[]) {
   char *progname;
   int opt_idx=1;
   
-  Lex_p.Delta=1.0;
+  Lex_p.Delta=1.0e1;
 
-  rk[0]=1.0e-1; rk[1]=1.0e0; rk[2]=1.0e1; rk[3]=1.0e2; rk[4]=1.0e3;
-  rk[5]=1.0e4;  rk[6]=5.0e4; rk[7]=1.0e5; rk[8]=5.0e5; rk[9]=1.0e6;
+  //  rk[0]=1.0e-4; rk[1]=1.2e-4; rk[2]=1.3e-4; rk[3]=1.4e-4; 
+  rk[0]=1.0e-4;  rk[1]=2.5e-4;  rk[2]=3.0e-4;  rk[3]=5.0e-4; 
+  rk[4]=7.5e-4;  rk[5]=1.0e-3;  rk[6]=2.5e-3;  rk[7]=3.0e-3; 
+  rk[8]=5.0e-3;  rk[9]=7.5e-3; rk[10]=1.0e-2; rk[11]=2.5e-2;
+
+  // rk[0]=1.0e-7; rk[1]=1.2e-7; rk[2]=1.3e-7; rk[3]=1.4e-7; rk[4]=1.0e5;
+  //  rk[5]=1.0e6;  rk[6]=5.0e6; rk[7]=1.0e7; rk[8]=5.0e7; rk[9]=1.0e9;
+
+  //  rk[0]=1.0e-1; rk[1]=1.0e0; rk[2]=1.0e1; rk[3]=1.0e2; rk[4]=1.0e3;
+  //  rk[5]=1.0e4;  rk[6]=5.0e4; rk[7]=1.0e5; rk[8]=5.0e5; rk[9]=1.0e6;
   
   struct option long_opt[] = {
     {"Del",1,NULL,'d'},
@@ -210,20 +218,20 @@ int main(int argc, char *argv[]) {
   for (i=0;i<n_snp;++i) {
     wopt[i] = Lex_p.wi[i];
   }
-
+  
   N = n_snp;
-  gopt = lbfgs_malloc(N);
 
+  gopt = lbfgs_malloc(N);
+  
   for (i=0;i<n_snp;++i) {
     gopt[i] = log(wopt[i]);
   }
 
-  /* Initialize the parameters for the L-BFGS optimization. */
-  lbfgs_parameter_init(&param);
-
   for (i=0;i<M;++i) {
-    
     Lex_p.r=rk[i];
+
+    /* Initialize the parameters for the L-BFGS optimization. */
+    lbfgs_parameter_init(&param);
     
     /*Start the L-BFGS optimization.*/
     if ((ret = lbfgs(N, gopt, &Lex, evaluate, progress, &(Lex_p), &param)) != 0) {
@@ -231,7 +239,6 @@ int main(int argc, char *argv[]) {
       exit(1);
     }
     printf("n=%3d  rho_%-3d = %8.3e Lex = %8.3lf\n", i+1, i+1, rk[i], Lex);
-
   }
 
   for (i=0;i<n_snp;++i) {
@@ -279,33 +286,14 @@ static lbfgsfloatval_t evaluate(
     const int n,
     const lbfgsfloatval_t step
 				) {
-  int i, j, n_snp;
+  int i, j, n_snp, a;
   struct Lex_parameters *Lex_p=(struct Lex_parameters *)instance;
   lbfgsfloatval_t Le=0.0;
 
-  /******************************/
-  /* int n_pnt=Lex_p->n_pnt;    */
-  /* double Delta=Lex_p->Delta; */
-  /* double r=Lex_p->r;	        */
-  /* double *wi;	        */
-  /* double *gi;	        */
-  /* double *y_ex;	        */
-  /* double **y_sim;	        */
-  /******************************/
-  
-  double *Chi, ChiSum=0.0, ChiSqu=0.0, ratio_w_wi, ln_w_wi, Accep;
+  double *Chi, ChiSqu=0.0, Accep;
   double *wopt;
   double sum_w=0.0, f;
 
-  /************************************************************************************/
-  /* wi=(double *)gcemalloc_atomic(sizeof(double)*n_snp);			      */
-  /* gi=(double *)gcemalloc_atomic(sizeof(double)*n_snp);			      */
-  /* 										      */
-  /* y_ex=(double *)gcemalloc_atomic(sizeof(double)*n_pnt);			      */
-  /* y_sim=(double **)gcemalloc_atomic(sizeof(double *)*n_pnt);			      */
-  /* for (i=0;i<n_pnt;++i) y_sim[i]=(double *)gcemalloc_atomic(sizeof(double)*n_snp); */
-  /************************************************************************************/
-  
   Chi = (double *)gcemalloc_atomic(sizeof(double)*Lex_p->n_pnt);
 
   n_snp = n;
@@ -324,15 +312,15 @@ static lbfgsfloatval_t evaluate(
   }
   Le += Lex_p->r*(sum_w - 1.0)*(sum_w - 1.0);
 
-  for (i=0;i<Lex_p->n_pnt;++i) {
-    Chi[i]=0.0;
-    for (j=0;j<n_snp;++j) {
-      Chi[i]+=wopt[j]*Lex_p->y_sim[j][i];
+  ChiSqu=0.0;
+  for (a=0;a<Lex_p->n_pnt;++a) {
+    Chi[a]=0.0;
+    for (i=0;i<n_snp;++i) {
+      Chi[a]+=wopt[i]*Lex_p->y_sim[i][a];
     }
-    Chi[i]-=Lex_p->y_ex[i];
+    Chi[a]-=Lex_p->y_ex[a];
   
-    ChiSum += Chi[i];
-    ChiSqu += Chi[i]*Chi[i];
+    ChiSqu += Chi[a]*Chi[a];
   }
   
   Accep = ChiSqu - Lex_p->Delta;
@@ -340,10 +328,10 @@ static lbfgsfloatval_t evaluate(
   if (Accep > 0.0) {
     for (i=0;i<n_snp;++i) {
       f=0.0;
-      for (j=0;j<Lex_p->n_pnt;++j) {
-  	f+=Chi[j]*Lex_p->y_sim[i][j];
+      for (a=0;a<Lex_p->n_pnt;++a) {
+  	f+=Chi[a]*Lex_p->y_sim[i][a];
       }
-      f=f*4.0*Lex_p->r*Accep*wopt[i];
+      f=wopt[i]*Lex_p->r*4.0*Accep*f;
       g[i]+=f;
     }
     Le+=Lex_p->r*Accep*Accep;
