@@ -99,7 +99,7 @@ void writeConditions(
 
 int main(int argc, char *argv[]) {
   int i,j,k,l,a,d,n,ret = 0,interval=100;
-  double dummy,f;
+  double dummy,f,sum;
 
   int n_snp, N;   // # of snapshots, # of data points
 
@@ -279,7 +279,26 @@ int main(int argc, char *argv[]) {
       printf("lbfgs error!\n");
       exit(1);
     }
-    printf("n=%3d  rho_%-3d = %8.3e Lex = %8.3lf\n", i+1, i+1, rk[i], Lex);
+
+    for (j=0;j<n_snp;++j) wopt[j] = exp(gopt[j]);
+
+    ChiSqu=0.0;
+    for (a=0;a<Lex_p.n_pnt;++a) {
+      Chi[a]=0.0;
+      for (j=0;j<n_snp;++j) {
+	Chi[a]+=wopt[j]*Lex_p.y_sim[j][a];
+      }
+      Chi[a]-=Lex_p.y_ex[a];
+  
+      ChiSqu += Chi[a]*Chi[a];
+    }
+
+    sum=0.0;
+    for (j=0;j<n_snp;++j) {
+      sum+=wopt[j];
+    }
+
+    printf("n=%3d  rho_%-3d = %8.3e Lex = %8.3lf Chi^2 = %8.3lf Sumwopt = %8.3lf\n", i+1, i+1, rk[i], Lex, ChiSqu, sum);
   }
   printf("Optimization is done\n\n");
 
