@@ -2,20 +2,19 @@
 # Makefile for Ens_Reweight_wExpdatda program
 #
 
-HOME=. #../
+HOME=.
 SRC=.
-BIN=../bin
-LIBDIR=-L/Users/yamamoriyuu/onedrive/Research/work/programs/C/liblbfgs/lib
-INCDIR=-I/Users/yamamoriyuu/onedrive/Research/work/programs/C/liblbfgs/include
+BIN=../bin/
+LIBDIR=-L/Users/yamamoriyuu/onedrive/Research/work/programs/C/EnsRew_Ex/liblbfgs/lib
+INCDIR=-I/Users/yamamoriyuu/onedrive/Research/work/programs/C/EnsRew_Ex/liblbfgs/include
 
 # definitions
 #CC    = icc -pg -O3 -tpp6 -ipo
 #CC    = icc -check=conversion,stack,uninit
 #CC    = icc
-CC    = gcc -g
-#CC     = gcc
+CC    = gcc
 
-CFLAG = #-D_FILE_OFFSET_BITS=64 -D_LARGEFILE_SOURCE -m64 -O2
+CFLAG = -g #-D_FILE_OFFSET_BITS=64 -D_LARGEFILE_SOURCE -m64 -O2
 
 OBJS =  ensRefEx.o error.o
 
@@ -44,3 +43,4 @@ error.o: error.h
 clean: 
 	rm $(OBJS); \
 	rm $(TARGET);
+
