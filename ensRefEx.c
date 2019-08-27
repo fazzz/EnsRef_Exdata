@@ -54,6 +54,7 @@ struct Lex_parameters {
   int n_pnt;            // # of points
   double Delta;         // width of error
   double r;             // weight for penalty function
+  double r2;            // weight for penalty function2
   double *wi,*gi;       // initial weight for each snapshot
   double *y_ex,**y_sim; // observal (experiment), observal (simulation)
 };
@@ -105,6 +106,7 @@ int main(int argc, char *argv[]) {
 
   int n_ExPortM;  // # of iterations of exterior point method
   double rk[M];   // weight for penalty function
+  double rk2[M];  // weight for penalty function2
   char buf[256];
   
   double *wopt;                // initial and optimal weight for each snapshot
@@ -124,12 +126,14 @@ int main(int argc, char *argv[]) {
   char *outputfilename;
   char *outputOPTOBLfilename;
   char *paramfilename="epmparam";
+  char *paramfilename2="epmparam2";
 
   FILE *inputfileExpData;
   FILE *inputfileSimData;
   FILE *outputfile;
   FILE *outputOPTOBLfile;
   FILE *paramfile;
+  FILE *paramfile2;
   
   char *line;
   size_t len=0;
@@ -148,16 +152,19 @@ int main(int argc, char *argv[]) {
   struct option long_opt[] = {
     {"Del",1,NULL,'d'},
     {"Expm",1,NULL,'e'},
+    {"Expm2",1,NULL,'f'},
     {"h",0,NULL,'h'},
     {0,0,0,0}
   };
   
-  while((c=getopt_long(argc,argv,"hd:e:",long_opt,&opt_idx))!=-1) {
+  while((c=getopt_long(argc,argv,"hd:e:f:",long_opt,&opt_idx))!=-1) {
     switch(c) {
     case 'd':
       Lex_p.Delta=atof(optarg);  break;
     case 'e':
       paramfilename=optarg;  break;
+    case 'f':
+      paramfilename2=optarg;  break;
     case 'h':
       USAGE(progname);  exit(1);
     default:
@@ -186,6 +193,15 @@ int main(int argc, char *argv[]) {
     n_ExPortM+=n;
   }
   fclose(paramfile);
+
+  paramfile2=efopen(paramfilename2,"r");
+  i=0;
+  while ( fgets(buf,sizeof(buf),paramfile2)) {
+    if (strncmp(buf,"//",2)==0 || strcmp(buf,"\n")==0) continue;
+    n=sscanf(buf,"%lf%lf%lf%lf%lf",&rk2[i],&rk2[i+1],&rk2[i+2],&rk2[i+3],&rk2[i+4]);
+    i+=n;
+  }
+  fclose(paramfile2);
 
   /* STEP 3: Read Experimental Data */
   Lex_p.y_ex=(double *)emalloc(sizeof(double)*1);
@@ -270,6 +286,7 @@ int main(int argc, char *argv[]) {
   /* STEP 7-1: Start Exportal Points Method for optimization of xLagrangian */
   for (i=0;i<n_ExPortM;++i) {
     Lex_p.r=rk[i];
+    Lex_p.r2=rk2[i];
 
     /* STEP 7-2 Initialize the parameters for the L-BFGS optimization. */
     lbfgs_parameter_init(&LBFGS_param);
@@ -298,11 +315,10 @@ int main(int argc, char *argv[]) {
       sum+=wopt[j];
     }
 
-    printf("n=%3d  rho_%-3d = %8.3e Lex = %8.3lf Chi^2 = %8.3lf Sumwopt = %8.3lf\n", i+1, i+1, rk[i], Lex, ChiSqu, sum);
+    printf("n=%3d  rho_%-3d = (%5.2e, %5.2e) Lex = %8.3lf Chi^2 = %8.3lf Sumwopt = %8.3lf\n", i+1, i+1, rk[i], rk2[i], Lex, ChiSqu, sum);
   }
   printf("Optimization is done\n\n");
 
-  free(Lex_p.y_ex);
   free(Lex_p.wi);
   free(Lex_p.gi);
   
@@ -320,6 +336,8 @@ int main(int argc, char *argv[]) {
   
     ChiSqu += Chi[a]*Chi[a];
   }
+
+  free(Lex_p.y_ex);
 
   printf("Final Value of Chi^2 = %8.3lf\n",ChiSqu);
 
@@ -424,26 +442,38 @@ static lbfgsfloatval_t evaluate(
   lbfgsfloatval_t Le=0.0;
 
   double *Chi, ChiSqu=0.0, Accep;
-  double *wopt;
-  double sum_w=0.0, f;
+  double *wopt, *gi;
+  double sum_w=0.0, sum_wsqu, f;
 
   Chi = (double *)emalloc(sizeof(double)*Lex_p->n_pnt);
 
   n_snp = n;
   wopt = (double *)emalloc(sizeof(double)*n_snp);
+  gi   = (double *)emalloc(sizeof(double)*n_snp);
   
   for (i=0;i<n_snp;++i) {
     wopt[i]=exp(gopt[i]);
+    gi[i]=log(Lex_p->wi[i]);
     sum_w+=wopt[i];
   }
-
+  sum_wsqu=sum_w*sum_w;
+  
   Le=0.0;
+  
   for (i=0;i<n_snp;++i) {
-    g[i]=wopt[i]*(gopt[i]-Lex_p->gi[i]+1.0+2.0*Lex_p->r*(sum_w - 1.0));
-
-    Le+=wopt[i]*log(wopt[i]/Lex_p->wi[i]);
+    g[i]=wopt[i]*(gopt[i]-Lex_p->gi[i]+1.0+2.0*Lex_p->r2*(sum_w - 1.0));
+    //    f=0.0;
+    //    g[i]=wopt[i]/(sum_w)*(gopt[i]-Lex_p->gi[i]-log(sum_w));
+    //    
+    //    for (j=0;j<n_snp;++j) {
+    //      f+=wopt[j]*(gopt[j]-Lex_p->gi[j]-log(sum_w));
+    //    }
+    //    g[i]-=wopt[i]/sum_wsqu*f;
+    
+    Le+=wopt[i]*(gopt[i]-gi[i]); //log(wopt[i]/Lex_p->wi[i]);
+    //    Le+=wopt[i]*(gopt[i]-gi[i]-log(sum_w));
   }
-  Le += Lex_p->r*(sum_w - 1.0)*(sum_w - 1.0);
+  Le += Lex_p->r2*(sum_w - 1.0)*(sum_w - 1.0);
 
   ChiSqu=0.0;
   for (a=0;a<Lex_p->n_pnt;++a) {
