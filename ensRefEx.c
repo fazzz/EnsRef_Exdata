@@ -113,6 +113,8 @@ int main(int argc, char *argv[]) {
   double *Chi, ChiSqu=0.0;
   double *y_opt;
   struct Lex_parameters Lex_p; // parametrs for extended Lagrangian
+
+  double KLD;
   
   lbfgsfloatval_t Lex;           // extended Lagrangian
   lbfgsfloatval_t *gopt;         // (optimal) weights for snapshots
@@ -269,6 +271,11 @@ int main(int argc, char *argv[]) {
   
   for (i=0;i<n_snp;++i) gopt[i] = log(wopt[i]);
 
+  KLD=0.0;
+  for (i=0;i<n_snp;++i) {
+    KLD += wopt[i]*log(wopt[i]/Lex_p.wi[i]);
+  }
+  
   ChiSqu=0.0;
   for (a=0;a<Lex_p.n_pnt;++a) {
     Chi[a]=0.0;
@@ -280,7 +287,7 @@ int main(int argc, char *argv[]) {
     ChiSqu += Chi[a]*Chi[a];
   }
   
-  printf("\nInitial Value of Chi^2 = %8.3lf\n\n",ChiSqu);
+  printf("\nInitial Value of Chi^2 = %8.3lf KLD = %12.4e\n\n",ChiSqu,KLD);
 
   printf("Start optimization\n");
   /* STEP 7-1: Start Exportal Points Method for optimization of xLagrangian */
@@ -299,6 +306,11 @@ int main(int argc, char *argv[]) {
 
     for (j=0;j<n_snp;++j) wopt[j] = exp(gopt[j]);
 
+    KLD=0.0;
+    for (j=0;j<n_snp;++j) {
+      KLD += wopt[j]*log(wopt[j]/Lex_p.wi[j]);
+    }
+
     ChiSqu=0.0;
     for (a=0;a<Lex_p.n_pnt;++a) {
       Chi[a]=0.0;
@@ -315,14 +327,20 @@ int main(int argc, char *argv[]) {
       sum+=wopt[j];
     }
 
-    printf("n=%3d  rho_%-3d = (%5.2e, %5.2e) Lex = %8.3lf Chi^2 = %8.3lf Sumwopt = %8.3lf\n", i+1, i+1, rk[i], rk2[i], Lex, ChiSqu, sum);
+    printf("n=%3d  rho_%-3d = (%5.2e, %5.2e) Lex = %8.3lf Chi^2 = %8.3lf KLD = %12.4e Sumwopt = %8.3lf\n", i+1, i+1, rk[i], rk2[i], Lex, ChiSqu, KLD, sum);
   }
   printf("Optimization is done\n\n");
 
-  free(Lex_p.wi);
   free(Lex_p.gi);
   
   for (i=0;i<n_snp;++i) wopt[i] = exp(gopt[i]);
+
+  KLD=0.0;
+  for (i=0;i<n_snp;++i) {
+    KLD += wopt[i]*log(wopt[i]/Lex_p.wi[i]);
+  }
+
+  free(Lex_p.wi);
 
   y_opt=(double *)emalloc(sizeof(double)*Lex_p.n_pnt);
   
@@ -339,8 +357,9 @@ int main(int argc, char *argv[]) {
 
   free(Lex_p.y_ex);
 
-  printf("Final Value of Chi^2 = %8.3lf\n",ChiSqu);
+  printf("Final Value of Chi^2 = %8.3lf KLD = %12.4e\n",ChiSqu, KLD);
 
+  /* FINAL STEP Write outputfile (optimal expectations)*/
   outputOPTOBLfile=efopen(outputOPTOBLfilename,"w");
   for (a=0;a<Lex_p.n_pnt;++a) {
     fprintf(outputOPTOBLfile,"%10.8lf\n",y_opt[a]);
@@ -350,16 +369,16 @@ int main(int argc, char *argv[]) {
   free(y_opt);
 
   free(Chi);
-  free(Lex_p.y_sim);
   lbfgs_free(gopt);
-  
-  /* FINAL STEP Write outputfile */
+
+  /* FINAL STEP Write outputfile (weights)*/
   outputfile=efopen(outputfilename,"w");
   for (i=0;i<n_snp;++i) {
     fprintf(outputfile,"%4d %10.8lf\n",i+1,wopt[i]);
   }
   fclose(outputfile);
-
+  
+  free(Lex_p.y_sim);
   free(wopt);
   
   time(&t);
@@ -502,7 +521,8 @@ static lbfgsfloatval_t evaluate(
 
   free(Chi);
   free(wopt);
-  
+
+
   return Le;
 }
 
@@ -519,8 +539,12 @@ static int progress(
     int ls
 		    )
 {
+
   //  printf("Iteration %3d:", k);
   //  printf("  fx = %8.3f", fx);
   //  printf("  xnorm = %8.3e, gnorm = %8.3e, step = %8.3f\n", xnorm, gnorm, step);
+
   return 0;
 }
+
+
