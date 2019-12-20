@@ -1,18 +1,18 @@
 # EnsRef_Exdata
 
-Installation
+##Installation
 ``
 ./configure CPPFLAGS=-ILBFGSINSTALLDIR/include LDFLAGS=-LLBFGSINSTALLDIR/lib
 make
 make install
 ``
 
-How to use
+##How to use
 ``
 ensResEx experimentaldata simulationdata weigh optimalobservalvalues
 ``
 
-Options
+##Options
 [--Del]
 [--Expm]
 [--Expm2]
