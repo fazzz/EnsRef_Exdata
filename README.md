@@ -1,19 +1,28 @@
 # EnsRef_Exdata
 
-##Installation
+## Requirement
+
+libLBFGS (http://www.chokkan.org/software/liblbfgs/)
+
+## Installation
+
 ``
-./configure CPPFLAGS=-ILBFGSINSTALLDIR/include LDFLAGS=-LLBFGSINSTALLDIR/lib
+./configure CPPFLAGS=-ILBFGS-INSTALL-DIR/include LDFLAGS=-LLBFGS-INSTALL-DIR/lib
 make
 make install
 ``
 
-##How to use
+## How to use
+
 ``
 ensResEx experimentaldata simulationdata weigh optimalobservalvalues
 ``
 
-##Options
-[--Del]
-[--Expm]
-[--Expm2]
-[--h] help `show the help message`
+## Options
+
+[--Del] `error width`
+
+[--Expm] `parameter file name`
+
+[--h] `show the 
+

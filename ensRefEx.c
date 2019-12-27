@@ -5,34 +5,38 @@
  { Y } : Experimental data. M dimension.
  { y } : Simulation data projected to the observal space. M x N dimension.
 
+ M : Number of the data points.
+ N : Number of the snapshots.
+
  Where, y = y(x), and {x} means samples on phase space.
+
+ PARAMETERS;
+ Delta : the width of the error between <y> and Y.
+ r_k : weight for the k-th exterior point method.
 
  OUTPUT;
  { omega }: weights for each snapshots that satisfies experimental data
-            with the given error width.
-            N dimension.
+            with the given error width. N dimension.
  { <y> }: Optimized observals. M dimension.
 
  Where, 
  rho_sim : distribution derived from simulation.
- rho     : optimal distribution that realize the experimental data
-           within error width Delta.
+ rho     : optimal distribution that realize the experimental data within error width.
 
  Optimal distribution rho can be represented by weights { omega }.
 
-DIFINITIONS;
+ DIFINITIONS;
  rho = omega_i ... x=x_{i}.
        0       ... otherwise.
 
- g_i = ln omega_i.
+ omega_i == exp(g_i) / sum_i(exp(g_i)).
 
  ALGORITHM;
  { g^{opt.} } <- arg min_{ g } D(rho || rho_sim),
  subject to Chi^2 < Delta, and \int rho dx = 1.
 
  Where, 
- D means Kullback-Leiblar divergence and
- Chi := \int \rho y dx - Y.
+ D means Kullback-Leiblar divergence and Chi := \int \rho(x) y(x) dx - Y.
 */
 
 #define _GNU_SOURCE  
@@ -54,15 +58,14 @@ struct Lex_parameters {
   int n_pnt;            // # of points
   double Delta;         // width of error
   double r;             // weight for penalty function
-  double r2;            // weight for penalty function2
-  double *wi,*gi;       // initial weight for each snapshot
+  double *g0;           // initial weight for each snapshot
   double *y_ex,**y_sim; // observal (experiment), observal (simulation)
 };
 
 static lbfgsfloatval_t evaluate(
     void *instance,
-    const lbfgsfloatval_t *x,
-    lbfgsfloatval_t *g,
+    const lbfgsfloatval_t *gi,
+    lbfgsfloatval_t *g_Lambda, // derivative of ex Lagrangian
     const int n,
     const lbfgsfloatval_t step
 				);
@@ -79,6 +82,19 @@ static int progress(
     int k,
     int ls
 		    );
+
+double cChiSquare(
+		  int n,
+		  int m,
+		  double *exp_gi,
+		  double **y_sim,
+		  double *y_ex);
+
+double cKLd(
+    int n,
+    double *exp_g0,
+    double *exp_gi
+	    );
 
 void USAGE(char *progname);
 
@@ -100,26 +116,28 @@ void writeConditions(
 
 int main(int argc, char *argv[]) {
   int i,j,k,l,a,d,n,ret = 0,interval=100;
-  double dummy,f,sum;
+  double dummy,f;
 
-  int n_snp, N;   // # of snapshots, # of data points
+  int n_snp;                     // # of snapshots, # of data points
 
-  int n_ExPortM;  // # of iterations of exterior point method
-  double rk[M];   // weight for penalty function
-  double rk2[M];  // weight for penalty function2
+  int n_ExPortM;                 // # of iterations of exterior point method
+  double rk[M];                  // weight for penalty function
   char buf[256];
   
-  double *wopt;                // initial and optimal weight for each snapshot
   double *Chi, ChiSqu=0.0;
   double *y_opt;
-  struct Lex_parameters Lex_p; // parametrs for extended Lagrangian
+  struct Lex_parameters Lex_p;   // parametrs for extended Lagrangian
 
-  double KLD;
+  double KLD;                    // KL divergence
   
   lbfgsfloatval_t Lex;           // extended Lagrangian
   lbfgsfloatval_t *gopt;         // (optimal) weights for snapshots
   lbfgs_parameter_t LBFGS_param; // parametrs for LBFGS
 
+  double *exp_gi;               // expotential of g_i
+  double sum_exp_gi;            // sum of exp(g_i)
+  double *exp_g0;               // expotential of g_0
+  
   char date[64];
   time_t t;
   
@@ -128,14 +146,12 @@ int main(int argc, char *argv[]) {
   char *outputfilename;
   char *outputOPTOBLfilename;
   char *paramfilename="epmparam";
-  char *paramfilename2="epmparam2";
 
   FILE *inputfileExpData;
   FILE *inputfileSimData;
   FILE *outputfile;
   FILE *outputOPTOBLfile;
   FILE *paramfile;
-  FILE *paramfile2;
   
   char *line;
   size_t len=0;
@@ -154,19 +170,16 @@ int main(int argc, char *argv[]) {
   struct option long_opt[] = {
     {"Del",1,NULL,'d'},
     {"Expm",1,NULL,'e'},
-    {"Expm2",1,NULL,'f'},
     {"h",0,NULL,'h'},
     {0,0,0,0}
   };
   
-  while((c=getopt_long(argc,argv,"hd:e:f:",long_opt,&opt_idx))!=-1) {
+  while((c=getopt_long(argc,argv,"hd:e:",long_opt,&opt_idx))!=-1) {
     switch(c) {
     case 'd':
       Lex_p.Delta=atof(optarg);  break;
     case 'e':
       paramfilename=optarg;  break;
-    case 'f':
-      paramfilename2=optarg;  break;
     case 'h':
       USAGE(progname);  exit(1);
     default:
@@ -195,15 +208,6 @@ int main(int argc, char *argv[]) {
     n_ExPortM+=n;
   }
   fclose(paramfile);
-
-  paramfile2=efopen(paramfilename2,"r");
-  i=0;
-  while ( fgets(buf,sizeof(buf),paramfile2)) {
-    if (strncmp(buf,"//",2)==0 || strcmp(buf,"\n")==0) continue;
-    n=sscanf(buf,"%lf%lf%lf%lf%lf",&rk2[i],&rk2[i+1],&rk2[i+2],&rk2[i+3],&rk2[i+4]);
-    i+=n;
-  }
-  fclose(paramfile2);
 
   /* STEP 3: Read Experimental Data */
   Lex_p.y_ex=(double *)emalloc(sizeof(double)*1);
@@ -255,109 +259,74 @@ int main(int argc, char *argv[]) {
 		  n_snp,Lex_p.n_pnt,rk,Lex_p.Delta,n_ExPortM,date);
   
   /* STEP 6: Set parameters for extended-Lagrangian */
-  Lex_p.wi = (double *)emalloc(sizeof(double)*n_snp);
-  Lex_p.gi = (double *)emalloc(sizeof(double)*n_snp);
-  wopt = (double *)emalloc(sizeof(double)*n_snp);
+  Lex_p.g0 = (double *)emalloc(sizeof(double)*n_snp);
+  exp_g0 = (double *)emalloc(sizeof(double)*n_snp);
 
   for (i=0;i<n_snp;++i) {
-    Lex_p.wi[i] = 1.0/n_snp;
-    Lex_p.gi[i] = log(Lex_p.wi[i]);
+    exp_g0[i] = 1.0/n_snp;
+    Lex_p.g0[i] = log(exp_g0[i]);
   }
-
-  for (i=0;i<n_snp;++i) wopt[i] = Lex_p.wi[i];
   
-  N = n_snp;
-  gopt = lbfgs_malloc(N);
+  gopt = lbfgs_malloc(n_snp);
+  exp_gi = (double *)emalloc(sizeof(double)*n_snp);
   
-  for (i=0;i<n_snp;++i) gopt[i] = log(wopt[i]);
-
-  KLD=0.0;
   for (i=0;i<n_snp;++i) {
-    KLD += wopt[i]*log(wopt[i]/Lex_p.wi[i]);
+    gopt[i] = Lex_p.g0[i];
+    exp_gi[i] = exp(gopt[i]);
   }
+
+  KLD=cKLd(n_snp,exp_g0,exp_gi);
+  ChiSqu=cChiSquare(n_snp, Lex_p.n_pnt, exp_gi, Lex_p.y_sim, Lex_p.y_ex);
   
-  ChiSqu=0.0;
-  for (a=0;a<Lex_p.n_pnt;++a) {
-    Chi[a]=0.0;
-    for (i=0;i<n_snp;++i) {
-      Chi[a]+=wopt[i]*Lex_p.y_sim[i][a];
-    }
-    Chi[a]-=Lex_p.y_ex[a];
-  
-    ChiSqu += Chi[a]*Chi[a];
-  }
-  
-  printf("\nInitial Value of Chi^2 = %8.3lf KLD = %12.4e\n\n",ChiSqu,KLD);
+  printf("\nInitial Value of Chi^2 = %8.3lf KLD = %12.4le\n\n",ChiSqu,KLD);
 
   printf("Start optimization\n");
   /* STEP 7-1: Start Exportal Points Method for optimization of xLagrangian */
   for (i=0;i<n_ExPortM;++i) {
     Lex_p.r=rk[i];
-    Lex_p.r2=rk2[i];
 
     /* STEP 7-2 Initialize the parameters for the L-BFGS optimization. */
     lbfgs_parameter_init(&LBFGS_param);
     
     /* STEP 7-3 Start the L-BFGS optimization.*/
-    if ((ret = lbfgs(N, gopt, &Lex, evaluate, progress, &(Lex_p), &LBFGS_param)) != 0) {
+    if ((ret = lbfgs(n_snp, gopt, &Lex, evaluate, progress, &(Lex_p), &LBFGS_param)) != 0) {
       printf("lbfgs error!\n");
       exit(1);
     }
 
-    for (j=0;j<n_snp;++j) wopt[j] = exp(gopt[j]);
+    for (j=0;j<n_snp;++j) exp_gi[j] = exp(gopt[j]);
 
-    KLD=0.0;
-    for (j=0;j<n_snp;++j) {
-      KLD += wopt[j]*log(wopt[j]/Lex_p.wi[j]);
-    }
+    KLD=cKLd(n_snp,exp_g0,exp_gi);
+    ChiSqu=cChiSquare(n_snp, Lex_p.n_pnt, exp_gi, Lex_p.y_sim, Lex_p.y_ex);
 
-    ChiSqu=0.0;
-    for (a=0;a<Lex_p.n_pnt;++a) {
-      Chi[a]=0.0;
-      for (j=0;j<n_snp;++j) {
-	Chi[a]+=wopt[j]*Lex_p.y_sim[j][a];
-      }
-      Chi[a]-=Lex_p.y_ex[a];
-  
-      ChiSqu += Chi[a]*Chi[a];
-    }
-
-    sum=0.0;
-    for (j=0;j<n_snp;++j) {
-      sum+=wopt[j];
-    }
-
-    printf("n=%3d  rho_%-3d = (%5.2e, %5.2e) Lex = %8.3lf Chi^2 = %8.3lf KLD = %12.4e Sumwopt = %8.3lf\n", i+1, i+1, rk[i], rk2[i], Lex, ChiSqu, KLD, sum);
+    printf("n=%3d  rho_%-3d = %5.2e Lex = %8.3lf Chi^2 = %8.3lf KLD = %12.4e\n", i+1, i+1, rk[i], Lex, ChiSqu, KLD);
   }
   printf("Optimization is done\n\n");
 
-  free(Lex_p.gi);
+  KLD=cKLd(n_snp,exp_g0,exp_gi);
   
-  for (i=0;i<n_snp;++i) wopt[i] = exp(gopt[i]);
+  free(Lex_p.g0);
 
-  KLD=0.0;
+  sum_exp_gi = 0.0;
   for (i=0;i<n_snp;++i) {
-    KLD += wopt[i]*log(wopt[i]/Lex_p.wi[i]);
+    exp_gi[i] = exp(gopt[i]);
+    sum_exp_gi += exp_gi[i];
   }
-
-  free(Lex_p.wi);
-
+    
   y_opt=(double *)emalloc(sizeof(double)*Lex_p.n_pnt);
-  
-  ChiSqu=0.0;
   for (a=0;a<Lex_p.n_pnt;++a) {
     y_opt[a]=0.0;
     for (i=0;i<n_snp;++i) {
-      y_opt[a]+=wopt[i]*Lex_p.y_sim[i][a];
+      y_opt[a]+=exp_gi[i]*Lex_p.y_sim[i][a];
     }
-    Chi[a] = y_opt[a]-Lex_p.y_ex[a];
-  
-    ChiSqu += Chi[a]*Chi[a];
+    y_opt[a]=y_opt[a]/sum_exp_gi;
   }
+  
+  ChiSqu=cChiSquare(n_snp, Lex_p.n_pnt, exp_gi, Lex_p.y_sim, Lex_p.y_ex);
 
   free(Lex_p.y_ex);
 
-  printf("Final Value of Chi^2 = %8.3lf KLD = %12.4e\n",ChiSqu, KLD);
+  printf("Final Value of Chi^2 = %8.3lf KLD = %10.4lf\n",ChiSqu, KLD);
 
   /* FINAL STEP Write outputfile (optimal expectations)*/
   outputOPTOBLfile=efopen(outputOPTOBLfilename,"w");
@@ -374,12 +343,12 @@ int main(int argc, char *argv[]) {
   /* FINAL STEP Write outputfile (weights)*/
   outputfile=efopen(outputfilename,"w");
   for (i=0;i<n_snp;++i) {
-    fprintf(outputfile,"%4d %10.8lf\n",i+1,wopt[i]);
+    fprintf(outputfile,"%4d %10.8lf\n",i+1,exp_gi[i]/sum_exp_gi);
   }
   fclose(outputfile);
   
   free(Lex_p.y_sim);
-  free(wopt);
+  free(exp_gi);
   
   time(&t);
   strftime(date, sizeof(date), "%Y/%m/%d %a %H:%M:%S", localtime(&t));
@@ -436,92 +405,111 @@ void writeConditions(
 }
   
 /*
-  Chi_i := (<y_sim,i> - y_ex,i).
-  Chi-2 := \Sum Chi_i^2.
+  \chi_a \equiv ( \langle y_{sim, a} \rangle - y_{ex, a}).
+  \chi^2 \equiv \sum_a^{M} \chi_a^2.
 
-  Lex^n({ omega }, Lambda) := Sum_{i=1}^{n} omega_{i} ln (omega_{i} / omega_{i}^{0}) 
-                             + Lambda (Sum_{i=1}^{N} omega_{i} -1).
-                             + rho_n (max[0, (\Sum Chi_i^2 - Delta])^2).
+  The difinition of Lagrangian $\mathscr{L}^{ex}_n$ is
+  \begin{eqution}
+    \mathscr{L}^{ex}_n({g}) \equiv \sum_{i=1}^{n} e^{g_{i}} ( g_{i} - g_{0} - \ln (\sum_{j=1}^{n} e^{g_{j}}) ) \ \
+    + rho_{n} (\max \[0, (\chi_i^2 - \Delta^{2}])^2.
+  \end{equation}
 
-  g_i({omega}, Lambda) = ln (omega_{i} / omega_{i}^{0}) + 1
-                         + 4*rho_n*(Chi^2-Delta)*\Sum_j=1{ Chi_j*y_j,i }.
-  Where, 3rd of rhs is active when Chi^2>Delta.
-  g_Lambda({omega}) = Sum_{i=1}^{N} omega_{i} -1.
+  The derivative of the Lagrangian is
+  \begin{eqution}
+    \frac{\partial \mathscr{L}^{ex}_n({g})}{\partial g_{i}} \\
+    = \frac{e^{g_{i}}}{\sum_{j=1}^{n} e^{g_{j}}} ( g_{i} - g_{0} - \ln (\sum_{j=1}^{n} e^{g_{j}}) ) \\
+    - \frac{e^{g_{i}}}{(\sum_{j=1}^{n} e^{g_{j}})^{2}} (\sum_{j=1}^{N} e^{g_{j}} \\
+         (g_{j} - g_{0} - \ln (\sum_{k=1}^{n} e^{g_{k}})) ) \\
+    + 4\rho_{n} (\chi^2-Delta) \sum_{a=1}^{M} \chi_{a} \\
+         (  \frac{e^{g_{i}} y_{a,i}}{\sum_{k=1}^{n} e^{g_{k}}} \\
+          - \frac{\sum_{j=1}^{N}e^{g_{i}} e^{g_{j}} y_{a,j}}{\sum_{k=1}^{n} e^{g_{k}}}^{2} ),
+  \end{equation}
+  where, 3rd of rhs is active when $\chi^2 > \delta^{2}$.
 */
 
 static lbfgsfloatval_t evaluate(
     void *instance,
-    const lbfgsfloatval_t *gopt,
-    lbfgsfloatval_t *g,
+    const lbfgsfloatval_t *gi,
+    lbfgsfloatval_t *g_Lambda,
     const int n,
     const lbfgsfloatval_t step
 				) {
-  int i, j, n_snp, a;
+  int i, j, a;
+  int m; // number of data points
   struct Lex_parameters *Lex_p=(struct Lex_parameters *)instance;
-  lbfgsfloatval_t Le=0.0;
+  lbfgsfloatval_t Le=0.0; // Lagrangian
 
-  double *Chi, ChiSqu=0.0, Accep;
-  double *wopt, *gi;
-  double sum_w=0.0, sum_wsqu, f;
+  double *Chi, ChiSqu=0.0, Discriminat;
+  double *g0, *exp_gi;
+  double sum_exp_gi, sum_exp_gi_square, ln_sum_exp_gi;
+  double g_Lambda_2nd_term, g_Lambda_3rd_term, f;
 
-  Chi = (double *)emalloc(sizeof(double)*Lex_p->n_pnt);
+  m=Lex_p->n_pnt;
 
-  n_snp = n;
-  wopt = (double *)emalloc(sizeof(double)*n_snp);
-  gi   = (double *)emalloc(sizeof(double)*n_snp);
+  Chi = (double *)emalloc(sizeof(double)*m);
+
+  g0 = (double *)emalloc(sizeof(double)*n);
+  exp_gi = (double *)emalloc(sizeof(double)*n);
   
-  for (i=0;i<n_snp;++i) {
-    wopt[i]=exp(gopt[i]);
-    gi[i]=log(Lex_p->wi[i]);
-    sum_w+=wopt[i];
+  sum_exp_gi = 0.0;
+  for (i=0;i<n;++i) {
+    g0[i] = Lex_p->g0[i];
+    exp_gi[i] = exp(gi[i]);
+    sum_exp_gi += exp_gi[i];
   }
-  sum_wsqu=sum_w*sum_w;
+  sum_exp_gi_square = sum_exp_gi*sum_exp_gi;
+  ln_sum_exp_gi = log(sum_exp_gi);
   
-  Le=0.0;
+  g_Lambda_2nd_term = 0.0;
+  for (i=0;i<n;++i) {
+    g_Lambda_2nd_term += exp_gi[i]*(gi[i]-g0[i]-ln_sum_exp_gi);
+  }
   
-  for (i=0;i<n_snp;++i) {
-    g[i]=wopt[i]*(gopt[i]-Lex_p->gi[i]+1.0+2.0*Lex_p->r2*(sum_w - 1.0));
-    //    f=0.0;
-    //    g[i]=wopt[i]/(sum_w)*(gopt[i]-Lex_p->gi[i]-log(sum_w));
-    //    
-    //    for (j=0;j<n_snp;++j) {
-    //      f+=wopt[j]*(gopt[j]-Lex_p->gi[j]-log(sum_w));
-    //    }
-    //    g[i]-=wopt[i]/sum_wsqu*f;
+  Le = 0.0;
+  for (i=0;i<n;++i) {
+    g_Lambda_2nd_term = exp_gi[i]/sum_exp_gi_square*g_Lambda_2nd_term;
+    g_Lambda[i]=exp_gi[i]/sum_exp_gi*(gi[i]-g0[i]-ln_sum_exp_gi) - g_Lambda_2nd_term;
     
-    Le+=wopt[i]*(gopt[i]-gi[i]); //log(wopt[i]/Lex_p->wi[i]);
-    //    Le+=wopt[i]*(gopt[i]-gi[i]-log(sum_w));
+    Le+=exp_gi[i]*(gi[i]-g0[i]-ln_sum_exp_gi);
   }
-  Le += Lex_p->r2*(sum_w - 1.0)*(sum_w - 1.0);
+  Le = Le/sum_exp_gi;
 
   ChiSqu=0.0;
-  for (a=0;a<Lex_p->n_pnt;++a) {
+  for (a=0;a<m;++a) {
     Chi[a]=0.0;
-    for (i=0;i<n_snp;++i) {
-      Chi[a]+=wopt[i]*Lex_p->y_sim[i][a];
+    for (i=0;i<n;++i) {
+      Chi[a]+=exp_gi[i]*Lex_p->y_sim[i][a];
     }
+    Chi[a]=Chi[a]/sum_exp_gi;
     Chi[a]-=Lex_p->y_ex[a];
   
     ChiSqu += Chi[a]*Chi[a];
   }
   
-  Accep = ChiSqu - Lex_p->Delta;
+  Discriminat = ChiSqu - Lex_p->Delta;
   
-  if (Accep > 0.0) {
-    for (i=0;i<n_snp;++i) {
-      f=0.0;
-      for (a=0;a<Lex_p->n_pnt;++a) {
-  	f+=Chi[a]*Lex_p->y_sim[i][a];
+  if (Discriminat > 0.0) {
+
+    for (i=0;i<n;++i) {
+      g_Lambda_3rd_term=0.0;
+      for (a=0;a<m;++a) {
+	f = 0.0;
+	for (j=0;j<n;++j) {
+	  f += exp_gi[i]*exp_gi[j]*Lex_p->y_sim[j][a];
+	}
+	f = f/sum_exp_gi_square;
+  	g_Lambda_3rd_term+=Chi[a]*(exp_gi[i]*Lex_p->y_sim[i][a]/sum_exp_gi-f);
       }
-      f=wopt[i]*Lex_p->r*4.0*Accep*f;
-      g[i]+=f;
+      g_Lambda_3rd_term = Lex_p->r*4.0*Discriminat*g_Lambda_3rd_term;
+      g_Lambda[i]+=g_Lambda_3rd_term;
     }
-    Le+=Lex_p->r*Accep*Accep;
+
+    Le+=Lex_p->r*Discriminat*Discriminat;
   }
 
   free(Chi);
-  free(wopt);
-
+  free(g0);
+  free(exp_gi);
 
   return Le;
 }
@@ -547,4 +535,60 @@ static int progress(
   return 0;
 }
 
+double cChiSquare(
+     int n,
+     int m,
+     double *exp_gi,
+     double **y_sim,
+     double *y_ex)
+{
+  int i,a;
+  double sum, ChiSqu;
+  double *Chi;
 
+  Chi=(double *)emalloc(sizeof(double)*m);
+  
+  sum = 0.0;
+  for (i=0;i<n;++i) {
+    sum += exp_gi[i];
+  }
+  
+  for (a=0;a<m;++a) {
+    Chi[a]=0.0;
+    for (i=0;i<n;++i) {
+      Chi[a]+=exp_gi[i]*y_sim[i][a];
+    }
+    Chi[a]=Chi[a]/sum;
+    Chi[a]-=y_ex[a];
+  
+    ChiSqu += Chi[a]*Chi[a];
+  }
+
+  return ChiSqu;
+}
+
+double cKLd(
+    int n,
+    double *exp_g0,
+    double *exp_gi)
+{
+  int i;
+  double KLD, sum, sum_0;
+
+  sum = 0.0;
+  for (i=0;i<n;++i) {
+    sum += exp_gi[i];
+  }
+
+  sum_0 = 0.0;
+  for (i=0;i<n;++i) {
+    sum_0 += exp_g0[i];
+  }
+
+  for (i=0;i<n;++i) {
+    KLD += exp_gi[i]*(log(exp_gi[i]) - log(sum) - log(exp_g0[0]) + log(sum_0));
+  }
+  KLD = KLD/sum;
+
+  return KLD;
+}
