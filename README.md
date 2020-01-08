@@ -7,7 +7,7 @@ libLBFGS (http://www.chokkan.org/software/liblbfgs/)
 ## Installation
 
 ``
-./configure CPPFLAGS=-ILBFGS-INSTALL-DIR/include LDFLAGS=-LLBFGS-INSTALL-DIR/lib
+./configure CPPFLAGS=-I*LBFGS-INSTALL-DIR*/include LDFLAGS=-L*LBFGS-INSTALL-DIR*/lib
 make
 make install
 ``
@@ -15,7 +15,7 @@ make install
 ## How to use
 
 ``
-ensResEx experimentaldata simulationdata weigh optimalobservalvalues
+ensResEx *experimental-data-name* *simulation-data-name* *weights-output-name* *optimal-observal-values-output-name*
 ``
 
 ## Options
@@ -24,5 +24,7 @@ ensResEx experimentaldata simulationdata weigh optimalobservalvalues
 
 [--Expm] `parameter file name`
 
-[--h] `show the 
+[--h] `show the help messeage`
+
+
 

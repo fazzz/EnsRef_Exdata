@@ -278,7 +278,7 @@ int main(int argc, char *argv[]) {
   KLD=cKLd(n_snp,exp_g0,exp_gi);
   ChiSqu=cChiSquare(n_snp, Lex_p.n_pnt, exp_gi, Lex_p.y_sim, Lex_p.y_ex);
   
-  printf("\nInitial Value of Chi^2 = %8.3lf KLD = %12.4le\n\n",ChiSqu,KLD);
+  printf("\nInitial Value of Chi^2 = %8.3lf KLD = %10.4lf\n\n",ChiSqu,KLD);
 
   printf("Start optimization\n");
   /* STEP 7-1: Start Exportal Points Method for optimization of xLagrangian */
@@ -300,8 +300,12 @@ int main(int argc, char *argv[]) {
     ChiSqu=cChiSquare(n_snp, Lex_p.n_pnt, exp_gi, Lex_p.y_sim, Lex_p.y_ex);
 
     printf("n=%3d  rho_%-3d = %5.2e Lex = %8.3lf Chi^2 = %8.3lf KLD = %12.4e\n", i+1, i+1, rk[i], Lex, ChiSqu, KLD);
+    if ( ChiSqu < Lex_p.Delta) {
+      printf("Optimization is done\n\n");
+      break;
+    }
   }
-  printf("Optimization is done\n\n");
+  printf("Optimization is finished\n\n");
 
   KLD=cKLd(n_snp,exp_g0,exp_gi);
   
@@ -506,6 +510,9 @@ static lbfgsfloatval_t evaluate(
 
     Le+=Lex_p->r*Discriminat*Discriminat;
   }
+  else {
+    printf("This is internal area!\n");
+  }
 
   free(Chi);
   free(g0);
@@ -547,6 +554,7 @@ double cChiSquare(
   double *Chi;
 
   Chi=(double *)emalloc(sizeof(double)*m);
+  ChiSqu=0.0;
   
   sum = 0.0;
   for (i=0;i<n;++i) {
