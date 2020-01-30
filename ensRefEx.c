@@ -281,15 +281,135 @@ int main(int argc, char *argv[]) {
   printf("\nInitial Value of Chi^2 = %8.3lf KLD = %10.4lf\n\n",ChiSqu,KLD);
 
   printf("Start optimization\n");
-  /* STEP 7-1: Start Exportal Points Method for optimization of xLagrangian */
+  /* STEP 7-1 Initialize the parameters for the L-BFGS optimization. */
+  lbfgs_parameter_init(&LBFGS_param);
+  /* STEP 7-2: Start Exportal Points Method for optimization of xLagrangian */
   for (i=0;i<n_ExPortM;++i) {
     Lex_p.r=rk[i];
-
-    /* STEP 7-2 Initialize the parameters for the L-BFGS optimization. */
-    lbfgs_parameter_init(&LBFGS_param);
     
     /* STEP 7-3 Start the L-BFGS optimization.*/
-    if ((ret = lbfgs(n_snp, gopt, &Lex, evaluate, progress, &(Lex_p), &LBFGS_param)) != 0) {
+    ret = lbfgs(n_snp, gopt, &Lex, evaluate, progress, &(Lex_p), &LBFGS_param);
+
+    if (ret==LBFGS_ALREADY_MINIMIZED) {
+      printf("Initial values are already minimized.\n");
+    }
+    else if (ret==LBFGSERR_LOGICERROR) {
+      printf("lbfgs error!(Logic error)\n");
+      exit(1);
+    }
+    else if (ret==LBFGSERR_UNKNOWNERROR) {
+      printf("lbfgs error!(Unknown error)\n");
+      exit(1);
+    }
+    else if (ret==LBFGSERR_OUTOFMEMORY) {
+      printf("lbfgs error!(Insufficient memory)\n");
+      exit(1);
+    }
+    else if (ret==LBFGSERR_CANCELED) {
+      printf("lbfgs error!(Minimization canceled)\n");
+      exit(1);
+    }
+    else if (ret==LBFGSERR_INVALID_N) {
+      printf("lbfgs error!(Invalid number of variables)\n");
+      exit(1);
+    }
+    else if (ret==LBFGSERR_INVALID_EPSILON) {
+      printf("lbfgs error!(Invalid epsilon)\n");
+      exit(1);
+    }
+    else if (ret==LBFGSERR_INVALID_TESTPERIOD) {
+      printf("lbfgs error!(Invalid t pas)\n");
+      exit(1);
+    }
+    else if (ret==LBFGSERR_INVALID_DELTA) {
+      printf("lbfgs error!(Invalid delta)\n");
+      exit(1);
+    }
+    else if (ret==LBFGSERR_INVALID_LINESEARCH) {
+      printf("lbfgs error!(Invalid linesearch)\n");
+      exit(1);
+    }
+    else if (ret==LBFGSERR_INVALID_MAXSTEP) {
+      printf("lbfgs error!(Invalid maxstep)\n");
+      exit(1);
+    }
+    else if (ret==LBFGSERR_INVALID_MINSTEP) {
+      printf("lbfgs error!(Invalid minstep)\n");
+      exit(1);
+    }
+    else if (ret==LBFGSERR_INVALID_FTOL) {
+      printf("lbfgs error!(Invalid ftol)\n");
+      exit(1);
+    }
+    else if (ret==LBFGSERR_INVALID_WOLFE) {
+      printf("lbfgs error!(Invalid wolfe)\n");
+      exit(1);
+    }
+    else if (ret==LBFGSERR_INVALID_GTOL) {
+      printf("lbfgs error!(Invalid gtol)\n");
+      exit(1);
+    }
+    else if (ret==LBFGSERR_INVALID_XTOL) {
+      printf("lbfgs error!(Invalid xtol)\n");
+      exit(1);
+    }
+    else if (ret==LBFGSERR_INVALID_MAXLINESEARCH) {
+      printf("lbfgs error!(Invalid maxlinesearch)\n");
+      exit(1);
+    }
+    else if (ret==LBFGSERR_INVALID_ORTHANTWISE) {
+      printf("lbfgs error!(Invalid orthantwise)\n");
+      exit(1);
+    }
+    else if (ret==LBFGSERR_INVALID_ORTHANTWISE_START) {
+      printf("lbfgs error!(Invalid orthantwise start)\n");
+      exit(1);
+    }
+    else if (ret==LBFGSERR_INVALID_ORTHANTWISE_END) {
+      printf("lbfgs error!(Invalid orthantwise end)\n");
+      exit(1);
+    }
+    else if (ret==LBFGSERR_OUTOFINTERVAL) {
+      printf("lbfgs error!(out of interval)\n");
+      exit(1);
+    }
+    else if (ret==LBFGSERR_INCORRECT_TMINMAX ) {
+      printf("lbfgs error!(incorrect timinmax)\n");
+      exit(1);
+    }
+    else if (ret==LBFGSERR_ROUNDING_ERROR ) {
+      printf("lbfgs error!(round error)\n");
+      exit(1);
+    }
+    else if (ret==LBFGSERR_MINIMUMSTEP ) {
+      printf("lbfgs error!(minimum step)\n");
+      exit(1);
+    }
+    else if (ret==LBFGSERR_MAXIMUMSTEP ) {
+      printf("lbfgs error!(maximum step)\n");
+      exit(1);
+    }
+    else if (ret==LBFGSERR_MAXIMUMLINESEARCH ) {
+      printf("lbfgs error!(maximum linesearch)\n");
+      exit(1);
+    }
+    else if (ret==LBFGSERR_MAXIMUMITERATION ) {
+      printf("lbfgs error!(maximum iteration)\n");
+      exit(1);
+    }
+    else if (ret==LBFGSERR_WIDTHTOOSMALL ) {
+      printf("lbfgs error!(width too small)\n");
+      exit(1);
+    }
+    else if (ret==LBFGSERR_INVALIDPARAMETERS  ) {
+      printf("lbfgs error!(invaid parameters)\n");
+      exit(1);
+    }
+    else if (ret==LBFGSERR_INCREASEGRADIENT  ) {
+      printf("lbfgs error!(increase gradient)\n");
+      exit(1);
+    }
+    else if (ret!=LBFGS_SUCCESS) {
       printf("lbfgs error!\n");
       exit(1);
     }
@@ -300,7 +420,7 @@ int main(int argc, char *argv[]) {
     ChiSqu=cChiSquare(n_snp, Lex_p.n_pnt, exp_gi, Lex_p.y_sim, Lex_p.y_ex);
 
     printf("n=%3d  rho_%-3d = %5.2e Lex = %8.3lf Chi^2 = %8.3lf KLD = %12.4e\n", i+1, i+1, rk[i], Lex, ChiSqu, KLD);
-    if ( ChiSqu < Lex_p.Delta) {
+    if ( ChiSqu < Lex_p.Delta*Lex_p.Delta) {
       printf("Optimization is done\n\n");
       break;
     }
@@ -471,8 +591,7 @@ static lbfgsfloatval_t evaluate(
   
   Le = 0.0;
   for (i=0;i<n;++i) {
-    g_Lambda_2nd_term = exp_gi[i]/sum_exp_gi_square*g_Lambda_2nd_term;
-    g_Lambda[i]=exp_gi[i]/sum_exp_gi*(gi[i]-g0[i]-ln_sum_exp_gi) - g_Lambda_2nd_term;
+    g_Lambda[i]=exp_gi[i]/sum_exp_gi*(gi[i]-g0[i]-ln_sum_exp_gi) - exp_gi[i]/sum_exp_gi_square*g_Lambda_2nd_term;
     
     Le+=exp_gi[i]*(gi[i]-g0[i]-ln_sum_exp_gi);
   }
@@ -490,7 +609,8 @@ static lbfgsfloatval_t evaluate(
     ChiSqu += Chi[a]*Chi[a];
   }
   
-  Discriminat = ChiSqu - Lex_p->Delta;
+  /*Discriminat = ChiSqu - Lex_p->Delta;*/
+  Discriminat = ChiSqu - Lex_p->Delta*Lex_p->Delta;
   
   if (Discriminat > 0.0) {
 
@@ -509,6 +629,7 @@ static lbfgsfloatval_t evaluate(
     }
 
     Le+=Lex_p->r*Discriminat*Discriminat;
+    /*printf("This is external area!\n");*/
   }
   else {
     printf("This is internal area!\n");
@@ -535,9 +656,9 @@ static int progress(
 		    )
 {
 
-  //  printf("Iteration %3d:", k);
-  //  printf("  fx = %8.3f", fx);
-  //  printf("  xnorm = %8.3e, gnorm = %8.3e, step = %8.3f\n", xnorm, gnorm, step);
+  printf("Iteration %3d:", k);
+  /*printf("  fx = %8.3f", fx);*/
+  printf("  xnorm = %8.3e, gnorm = %8.3e, step = %8.3f\n", xnorm, gnorm, step);
 
   return 0;
 }
