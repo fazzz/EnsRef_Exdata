@@ -1,5 +1,7 @@
 # EnsRef_Exdata
 
+tool to re-weight the snapshots of molecular simulation to fit to the experimental data
+
 ## Requirement
 
 libLBFGS (http://www.chokkan.org/software/liblbfgs/)
@@ -8,7 +10,9 @@ libLBFGS (http://www.chokkan.org/software/liblbfgs/)
 
 ``
 ./configure CPPFLAGS=-I*LBFGS-INSTALL-DIR*/include LDFLAGS=-L*LBFGS-INSTALL-DIR*/lib
+
 make
+
 make install
 ``
 
