@@ -8,13 +8,9 @@ libLBFGS (http://www.chokkan.org/software/liblbfgs/)
 
 ## Installation
 
-``
-./configure CPPFLAGS=-I*LBFGS-INSTALL-DIR*/include LDFLAGS=-L*LBFGS-INSTALL-DIR*/lib
+``./configure CPPFLAGS=-I*LBFGS-INSTALL-DIR*/include LDFLAGS=-L*LBFGS-INSTALL-DIR*/lib``
 
-make
-
-make install
-``
+``make && make install``
 
 ## How to use
 
