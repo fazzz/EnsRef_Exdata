@@ -5,7 +5,7 @@
 prefix = @prefix@
 HOME = @prefix@
 SRC=@srcdir@
-BIN=@bindir@
+BIN=$(prefix)/bin
 LIBDIR=@LDFLAGS@
 INCDIR=@CPPFLAGS@
 
