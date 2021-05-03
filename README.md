@@ -12,6 +12,13 @@ the optimal weighting factors are derived
 by the maximizing the following objective function L,
 
 $$
+\begin{eqnarray}
+4a &=& ((a+a)+a)+a \\
+   &=& (a+a)+(a+a)
+\end{eqnarray}
+$$
+
+$$
 \mathscr{L}_{n}(\{ \omega \},\rho_{n}) = \mathscr{D} (\rho \mid \rho^{\mathrm sim.})
   + \lambda (\sum_{i=1}^{N} \omega_{i} - 1)
   + \rho_{n} ([ \max (0,\chi^{2}(\omega) - \delta^{2}) ])^{2},
@@ -78,13 +85,8 @@ The followings are the options for `ensRefEx`.
 The parameter file describes parameter r for exterior-point method.
 The example is as follows:
 
-
 ``
-//parameters for Exterior Point Method
-
-1.0e-2 1.0e-1 1.0e0 5.0e0 1.0e1
-
-5.0e1  1.0e2
+1.0e-2 1.0e-1 1.0e0 1.0e1 1.0e2
 ``
 
 ## Examples
@@ -104,7 +106,7 @@ To run the examples completley, you must install `python3` and `mdtraj`.
 To generate the experimental values vs. compputed values W/WO reweighing:
 
 ``
-cd examples
+cd examples;
 ./Fig2.sh
 ``
 
