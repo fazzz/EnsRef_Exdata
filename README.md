@@ -28,7 +28,7 @@ simulation trajectory whose snapshots are
 weighted by factors 
 <img src="https://latex.codecogs.com/gif.latex?\inline&space;\left\{\omega_i\right\}" />,
 N is the number of the snapshots, <img src="https://latex.codecogs.com/gif.latex?\inline&space;\rho_{n}" /> is the penalty parameter for enforcing <img src="https://latex.codecogs.com/gif.latex?\inline&space;\chi^2\left(\omega\right)" /> is
-smaller than some given tolerance parameter <img src="https://latex.codecogs.com/gif.latex?\inline&space;\delta^2$" />.
+smaller than some given tolerance parameter <img src="https://latex.codecogs.com/gif.latex?\inline&space;\delta^2" />.
 
 The desired optimal weighting factors <img src="https://latex.codecogs.com/gif.latex?\inline&space;\left\{\omega_i\right\}" />
 that satisfy the condition <img src="https://latex.codecogs.com/gif.latex?\inline&space;\chi^2\left(\omega\right)\le\delta^2" />
@@ -109,8 +109,9 @@ cd examples;
 ./Fig2.sh
 ``
 
-To generate the relationship between $\mathscr{D} (\rho \mid \rho^{\mathrm sim.})$ and $\chi^{2}$
-with multiple $\delta^{2}$
+To generate the relationship between <img src="https://latex.codecogs.com/gif.latex?\inline&space;D(\rho&space;\mid&space;\rho^{sim.})" /> 
+and <img src="https://latex.codecogs.com/gif.latex?\inline&space;\chi^{2}" />
+with multiple <img src="https://latex.codecogs.com/gif.latex?\inline&space;\delta^{2}" />.
 
 ``
 ./Fig3.sh
