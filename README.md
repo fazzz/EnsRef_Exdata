@@ -18,7 +18,7 @@ $$
 \end{eqnarray}
 $$
 
-<img src=https://latex.codecogs.com/gif.latex?L_{n}(\{&space;\omega&space;\},\rho_{n})&space;=D&space;(\rho&space;\mid&space;\rho^{\mathrm&space;sim.})&space;&plus;&space;\lambda&space;(\sum_{i=1}^{N}&space;\omega_{i}&space;-&space;1)&space;&plus;&space;\rho_{n}&space;([&space;\max&space;(0,\chi^{2}(\omega)&space;-&space;\delta^{2})&space;])^{2}">
+<img src="https://latex.codecogs.com/gif.latex?L_{n}(\{&space;\omega&space;\},\rho_{n})&space;=D&space;(\rho&space;\mid&space;\rho^{\mathrm&space;sim.})&space;&plus;&space;\lambda&space;(\sum_{i=1}^{N}&space;\omega_{i}&space;-&space;1)&space;&plus;&space;\rho_{n}&space;([&space;\max&space;(0,\chi^{2}(\omega)&space;-&space;\delta^{2})&space;])^{2}" />
 
 $$
 \mathscr{L}_{n}(\{ \omega \},\rho_{n}) = \mathscr{D} (\rho \mid \rho^{\mathrm sim.})
