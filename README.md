@@ -116,3 +116,13 @@ with multiple <img src="https://latex.codecogs.com/gif.latex?\inline&space;\delt
 ``
 ./Fig3.sh
 ``
+
+## Reference
+
+''An Ensemble Reweighting Method for Combining the Information of Experiments and Simulations''
+
+Yu Yamamori, Kentaro Tomii
+
+Chemical Physics Letters 779, 16, 138821, (2021)
+
+https://doi.org/10.1016/j.cplett.2021.138821
